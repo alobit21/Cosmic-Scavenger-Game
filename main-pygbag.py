@@ -168,9 +168,9 @@ class GameManager:
         self.bg_image = pygame.transform.scale(self.bg_image, (SCREEN_WIDTH, SCREEN_HEIGHT))
         
         # Load Sounds (Commented out because .wav files often freeze Web browsers)
-        # self.shoot_sound = pygame.mixer.Sound("assets/shoot.wav")
+        # self.shoot_sound = pygame.mixer.Sound("assets/shoot.ogg")
         # self.shoot_sound.set_volume(0.3)
-        # self.explosion_sound = pygame.mixer.Sound("assets/explosion.wav")
+        # self.explosion_sound = pygame.mixer.Sound("assets/explosion.ogg")
         # self.explosion_sound.set_volume(0.3)
         
         self.clock = pygame.time.Clock()
