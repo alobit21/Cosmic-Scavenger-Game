@@ -14,6 +14,9 @@ BLACK = (0, 0, 0)
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 
+# --- ASSETS DICTIONARY ---
+ASSETS = {}
+
 # --- CLASSES ---
 
 class GameObject(pygame.sprite.Sprite):
@@ -21,15 +24,11 @@ class GameObject(pygame.sprite.Sprite):
     Base class for all visible objects in the game.
     Demonstrates Inheritance.
     """
-    def __init__(self, x, y, width, height, color):
+    def __init__(self, x, y, image_key):
         super().__init__()
-        # For now, we use colored rectangles instead of images for simplicity.
-        # Later, we can replace this with self.image = pygame.image.load(...)
-        self.image = pygame.Surface((width, height))
-        self.image.fill(color)
-        
+        self.image = ASSETS[image_key]
         self.rect = self.image.get_rect()
-        self.rect.x = x
+        self.rect.centerx = x
         self.rect.y = y
 
     def update(self):
@@ -44,7 +43,9 @@ class Player(GameObject):
     """
     def __init__(self, x, y):
         # Initialize the parent class (GameObject)
-        super().__init__(x, y, width=40, height=40, color=GREEN)
+        super().__init__(x, y, 'player')
+        # Adjust so x, y is the bottom center
+        self.rect.bottom = y
         self.speed = 5
         self.health = 3
         
@@ -75,8 +76,8 @@ class Laser(GameObject):
     Projectile fired by the player.
     """
     def __init__(self, x, y):
-        # We want the laser to spawn centered on the provided x
-        super().__init__(x - 4, y, width=8, height=15, color=RED)
+        super().__init__(x, y, 'laser')
+        self.rect.bottom = y
         self.speed = 7
 
     def update(self):
@@ -92,7 +93,7 @@ class Enemy(GameObject):
     Base enemy class. Falls straight down.
     """
     def __init__(self, x, y):
-        super().__init__(x, y, width=30, height=30, color=WHITE)
+        super().__init__(x, y, 'enemy')
         self.speed = random.randint(2, 5)
 
     def update(self):
@@ -110,7 +111,7 @@ class ZigZagEnemy(Enemy):
     """
     def __init__(self, x, y):
         super().__init__(x, y)
-        self.image.fill((255, 165, 0)) # Orange color
+        self.image = ASSETS['enemy_zigzag'] # Use the zigzag image instead
         self.direction = 1 # 1 for right, -1 for left
         self.x_speed = 3
 
@@ -138,10 +139,29 @@ class GameManager:
     def __init__(self):
         pygame.init()
         pygame.font.init()
+        pygame.mixer.init() # Initialize sound
         self.font = pygame.font.SysFont(None, 36)
         
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
         pygame.display.set_caption("Cosmic Scavenger")
+        
+        # Load Assets
+        ASSETS['player'] = pygame.image.load("assets/player.png").convert_alpha()
+        ASSETS['enemy'] = pygame.image.load("assets/enemy.png").convert_alpha()
+        ASSETS['enemy_zigzag'] = pygame.image.load("assets/enemy_zigzag.png").convert_alpha()
+        ASSETS['laser'] = pygame.image.load("assets/laser.png").convert_alpha()
+        
+        # Background
+        self.bg_image = pygame.image.load("assets/background.png").convert()
+        # Scale background to fit screen
+        self.bg_image = pygame.transform.scale(self.bg_image, (SCREEN_WIDTH, SCREEN_HEIGHT))
+        
+        # Load Sounds
+        self.shoot_sound = pygame.mixer.Sound("assets/shoot.wav")
+        self.shoot_sound.set_volume(0.3)
+        self.explosion_sound = pygame.mixer.Sound("assets/explosion.wav")
+        self.explosion_sound.set_volume(0.3)
+        
         self.clock = pygame.time.Clock()
         self.is_playing = True
         self.score = 0
@@ -153,7 +173,7 @@ class GameManager:
         self.lasers = pygame.sprite.Group()
         
         # Initialize Player
-        self.player = Player(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 60)
+        self.player = Player(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 20)
         self.all_sprites.add(self.player)
 
     def spawn_enemy(self):
@@ -198,6 +218,7 @@ class GameManager:
                 if self.player.health > 0:
                     if event.key == pygame.K_SPACE:
                         # Shoot laser
+                        self.shoot_sound.play()
                         laser = self.player.shoot()
                         self.all_sprites.add(laser)
                         self.lasers.add(laser)
@@ -213,6 +234,7 @@ class GameManager:
         # check if lasers hit enemies
         hits = pygame.sprite.groupcollide(self.enemies, self.lasers, True, True)
         for hit in hits:
+            self.explosion_sound.play()
             self.score += 10  # Increase score
             # Level up every 100 points
             if self.score > 0 and self.score % 100 == 0:
@@ -221,6 +243,7 @@ class GameManager:
         # check if enemies hit player. "True" destroys the enemy upon hit
         crashes = pygame.sprite.spritecollide(self.player, self.enemies, True)
         if crashes:
+            self.explosion_sound.play()
             self.player.health -= 1
             print(f"Player hit! Health: {self.player.health}")
 
@@ -266,7 +289,7 @@ class GameManager:
                 self.check_collisions()
             
             # Drawing
-            self.screen.fill(BLACK)
+            self.screen.blit(self.bg_image, (0, 0)) # Draw Background
             self.all_sprites.draw(self.screen)
             self.draw_ui()
             
