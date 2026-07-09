@@ -142,6 +142,23 @@ class ZigZagEnemy(Enemy):
             self.kill()
 
 
+class Button:
+    def __init__(self, x, y, width, height, text, color):
+        self.rect = pygame.Rect(x, y, width, height)
+        self.text = text
+        self.color = color
+        self.font = pygame.font.SysFont(None, 36)
+
+    def draw(self, surface):
+        pygame.draw.rect(surface, self.color, self.rect, border_radius=5)
+        text_surf = self.font.render(self.text, True, WHITE)
+        text_rect = text_surf.get_rect(center=self.rect.center)
+        surface.blit(text_surf, text_rect)
+
+    def is_clicked(self, pos):
+        return self.rect.collidepoint(pos)
+
+
 class GameManager:
     """
     Manages the game state, main loop, and sprite groups.
@@ -150,7 +167,7 @@ class GameManager:
     def __init__(self):
         pygame.init()
         pygame.font.init()
-        # pygame.mixer.init() # Commented out for WebAssembly compatibility
+        pygame.mixer.init() # Using .ogg files now for WebAssembly compatibility!
         self.font = pygame.font.SysFont(None, 36)
         
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -167,11 +184,16 @@ class GameManager:
         # Scale background to fit screen
         self.bg_image = pygame.transform.scale(self.bg_image, (SCREEN_WIDTH, SCREEN_HEIGHT))
         
-        # Load Sounds (Commented out because .wav files often freeze Web browsers)
-        # self.shoot_sound = pygame.mixer.Sound("assets/shoot.wav")
-        # self.shoot_sound.set_volume(0.3)
-        # self.explosion_sound = pygame.mixer.Sound("assets/explosion.wav")
-        # self.explosion_sound.set_volume(0.3)
+        # Load Sounds (Now using .ogg which is completely web-safe)
+        self.sound_enabled = True
+        self.shoot_sound = pygame.mixer.Sound("assets/shoot.ogg")
+        self.shoot_sound.set_volume(0.3)
+        self.explosion_sound = pygame.mixer.Sound("assets/explosion.ogg")
+        self.explosion_sound.set_volume(0.3)
+        
+        # UI Buttons
+        self.sound_btn = Button(SCREEN_WIDTH - 160, 10, 150, 35, "Sound: ON", (100, 100, 100))
+        self.restart_btn = Button(SCREEN_WIDTH//2 - 75, SCREEN_HEIGHT//2 + 40, 150, 45, "RESTART", GREEN)
         
         self.clock = pygame.time.Clock()
         self.is_playing = True
@@ -229,7 +251,8 @@ class GameManager:
                 if self.player.health > 0:
                     if event.key == pygame.K_SPACE:
                         # Shoot laser
-                        # self.shoot_sound.play()
+                        if self.sound_enabled:
+                            self.shoot_sound.play()
                         laser = self.player.shoot()
                         self.all_sprites.add(laser)
                         self.lasers.add(laser)
@@ -240,17 +263,25 @@ class GameManager:
                     elif event.key == pygame.K_q:
                         self.is_playing = False
                         
-            # Mobile tap to restart on Game Over
+            # Mobile Button Taps
             elif event.type == pygame.MOUSEBUTTONDOWN:
+                # Check Sound Button
+                if self.sound_btn.is_clicked(event.pos):
+                    self.sound_enabled = not self.sound_enabled
+                    self.sound_btn.text = "Sound: ON" if self.sound_enabled else "Sound: OFF"
+                
+                # Check Restart Button on Game Over
                 if self.player.health <= 0:
-                    self.reset_game()
+                    if self.restart_btn.is_clicked(event.pos):
+                        self.reset_game()
 
     def check_collisions(self):
         """Handle interactions between objects."""
         # check if lasers hit enemies
         hits = pygame.sprite.groupcollide(self.enemies, self.lasers, True, True)
         for hit in hits:
-            # self.explosion_sound.play()
+            if self.sound_enabled:
+                self.explosion_sound.play()
             self.score += 10  # Increase score
             # Level up every 100 points
             if self.score > 0 and self.score % 100 == 0:
@@ -259,7 +290,8 @@ class GameManager:
         # check if enemies hit player. "True" destroys the enemy upon hit
         crashes = pygame.sprite.spritecollide(self.player, self.enemies, True)
         if crashes:
-            # self.explosion_sound.play()
+            if self.sound_enabled:
+                self.explosion_sound.play()
             self.player.health -= 1
             print(f"Player hit! Health: {self.player.health}")
 
@@ -275,11 +307,15 @@ class GameManager:
         self.screen.blit(level_text, (10, 50))
         self.screen.blit(health_text, (10, 90))
         
+        # Draw sound toggle button
+        self.sound_btn.draw(self.screen)
+        
         if self.player.health <= 0:
-            game_over_text = self.font.render("GAME OVER - Press R or Tap to Restart", True, RED)
-            # Center the text
-            text_rect = game_over_text.get_rect(center=(SCREEN_WIDTH/2, SCREEN_HEIGHT/2))
+            game_over_text = self.font.render("GAME OVER", True, RED)
+            text_rect = game_over_text.get_rect(center=(SCREEN_WIDTH/2, SCREEN_HEIGHT/2 - 20))
             self.screen.blit(game_over_text, text_rect)
+            # Draw restart button
+            self.restart_btn.draw(self.screen)
 
     async def run(self):
         """The main game loop."""
@@ -295,6 +331,8 @@ class GameManager:
                 # Mobile Auto-Shoot (fires a laser every 20 frames)
                 self.player.shoot_timer += 1
                 if self.player.shoot_timer > 20:
+                    if self.sound_enabled:
+                        self.shoot_sound.play()
                     laser = self.player.shoot()
                     self.all_sprites.add(laser)
                     self.lasers.add(laser)
