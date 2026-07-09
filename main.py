@@ -6,8 +6,8 @@ import asyncio
 
 # --- CONSTANTS ---
 # (Rubric: Proper use of constants where applicable)
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 600
+SCREEN_WIDTH = 450
+SCREEN_HEIGHT = 800
 FPS = 60
 
 # Colors (R, G, B)
