@@ -1,3 +1,4 @@
+# pyrefly: ignore [missing-import]
 import pygame
 import sys
 import random
@@ -65,11 +66,8 @@ class Player(GameObject):
         # Mobile Touch / Mouse controls
         if pygame.mouse.get_pressed()[0]: # If screen is touched / clicked
             mouse_x, mouse_y = pygame.mouse.get_pos()
-            # Move smoothly towards the touch position
-            if self.rect.centerx < mouse_x - self.speed:
-                self.rect.x += self.speed
-            elif self.rect.centerx > mouse_x + self.speed:
-                self.rect.x -= self.speed
+            # Instantly snap the ship's X position to the finger for faster navigation!
+            self.rect.centerx = mouse_x
             
         # Prevent player from going off screen
         if self.rect.left < 0:
